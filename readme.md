@@ -123,7 +123,12 @@ Note that this Colab will disable refiner by default because Colab free's resour
 
 Using `--always-high-vram` shifts resource allocation from RAM to VRAM and achieves the overall best balance between performance, flexibility and stability on the default T4 instance. Please find more information [here](https://github.com/lllyasviel/Fooocus/pull/1710#issuecomment-1989185346).
 
-Thanks to [camenduru](https://github.com/camenduru) for the template!
+Thanks to [camenduru](https://github.com/camen![Flux_Dev__A_realistic_portrait_of_a_beautiful_young_woman_with_1](https://github.com/user-attachments/assets/d1604ff1-970a-4201-a67f-7e5a4028042a)
+![Flux_Dev__A_realistic_portrait_of_a_beautiful_young_woman_with_0](https://github.com/user-attachments/assets/0a6ee310-3813-476c-8a7c-29b2b07c7014)
+![Flux_Dev__A_realistic_portrait_of_a_beautiful_young_woman_with_3](https://github.com/user-attachments/assets/0239408c-85bb-42e3-8509-98501483f8b1)
+![Flux_Dev__A_realistic_portrait_of_a_beautiful_young_woman_with_2](https://github.com/user-attachments/assets/3d45045f-3ec6-4e59-9f6f-b1b474f10fcf)
+![Flux_Dev__A_realistic_portrait_of_a_beautiful_young_woman_with_1](https://github.com/user-attachments/assets/b84d7000-ce2d-48de-810d-39c9a810823f)
+duru) for the template!
 
 ### Linux (Using Anaconda)
 
