@@ -46,13 +46,12 @@ def refresh_controlnets(model_paths):
 @torch.no_grad()
 @torch.inference_mode()
 def assert_model_integrity():
-    error_message = None
+    if model_base.unet_with_lora is None or not hasattr(model_base.unet_with_lora, "model"):
+        print('[Info] Skipping model integrity check: base model is not loaded.')
+        return True
 
     if not isinstance(model_base.unet_with_lora.model, SDXL):
-        error_message = 'You have selected base model other than SDXL. This is not supported yet.'
-
-    if error_message is not None:
-        raise NotImplementedError(error_message)
+        raise NotImplementedError('You have selected base model other than SDXL. This is not supported yet.')
 
     return True
 
@@ -62,6 +61,11 @@ def assert_model_integrity():
 def refresh_base_model(name, vae_name=None):
     global model_base
 
+    if name is None or name == 'None':
+        print('[Info] No base model loaded.')
+        model_base = core.StableDiffusionModel()
+        return
+    
     filename = get_file_from_folder_list(name, modules.config.paths_checkpoints)
 
     vae_filename = None
@@ -215,17 +219,34 @@ def set_clip_skip(clip_skip: int):
 @torch.no_grad()
 @torch.inference_mode()
 def clear_all_caches():
-    final_clip.fcs_cond_cache = {}
+    global final_clip
+    if final_clip is not None and hasattr(final_clip, "fcs_cond_cache"):
+        final_clip.fcs_cond_cache = {}
+    else:
+        print("[Info] Skipping cache clear: final_clip is None.")
 
 
 @torch.no_grad()
 @torch.inference_mode()
 def prepare_text_encoder(async_call=True):
     if async_call:
-        # TODO: make sure that this is always called in an async way so that users cannot feel it.
         pass
+
     assert_model_integrity()
-    ldm_patched.modules.model_management.load_models_gpu([final_clip.patcher, final_expansion.patcher])
+
+    patchers = []
+
+    if final_clip is not None and hasattr(final_clip, "patcher"):
+        patchers.append(final_clip.patcher)
+
+    if final_expansion is not None and hasattr(final_expansion, "patcher"):
+        patchers.append(final_expansion.patcher)
+
+    if len(patchers) > 0:
+        ldm_patched.modules.model_management.load_models_gpu(patchers)
+    else:
+        print("[Info] No models to load into GPU (no base model).")
+
     return
 
 
