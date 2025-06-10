@@ -24,6 +24,7 @@ from modules.ui_gradio_extensions import reload_javascript
 from modules.auth import auth_enabled, check_auth
 from modules.util import is_json
 
+import webui_others
 import os
 import shutil
 import requests
@@ -562,7 +563,7 @@ with shared.gradio_root:
                                         outputs=enhance_input_panel, queue=False, show_progress=False, _js=switch_js)
 
         with gr.Column(scale=1, visible=modules.config.default_advanced_checkbox) as advanced_column:
-            with gr.Tab(label='Settings'):
+            with gr.Tab(label='Settings') as seetings_tab:
                 if not args_manager.args.disable_preset_selection:
                     preset_selection = gr.Dropdown(label='Preset',
                                                    choices=modules.config.available_presets,
@@ -891,7 +892,23 @@ with shared.gradio_root:
                     refresh_files_output += [preset_selection]
                 refresh_files.click(refresh_files_clicked, [], refresh_files_output + lora_ctrls,
                                     queue=False, show_progress=False)
-                
+            
+            advanced_checkbox.select(
+                fn=refresh_files_clicked,
+                inputs=[],
+                outputs=refresh_files_output + lora_ctrls,
+                queue=False,
+                show_progress=False
+            )
+            
+            seetings_tab.select(
+                fn=refresh_files_clicked,
+                inputs=[],
+                outputs=refresh_files_output + lora_ctrls,
+                queue=False,
+                show_progress=False
+            )
+
             model_tab.select(
                 fn=refresh_files_clicked,
                 inputs=[],
@@ -900,168 +917,18 @@ with shared.gradio_root:
                 show_progress=False
             )
 
-            with gr.Tab(label='Others'):
-                with gr.Column():
-                    with gr.Tab(label='Download'):
-                        file_input_path = gr.Textbox(
-                            label='File Path or URL',
-                            placeholder='Enter full path to file or downloadable URL',
-                            lines=1
-                        )
-
-                        destination_folder = gr.Dropdown(
-                            label='Target Folder',
-                            choices=[
-                                modules.config.paths_checkpoints[0],
-                                modules.config.paths_loras[0],
-                                modules.config.path_embeddings,
-                                modules.config.path_vae,
-                                modules.config.path_outputs
-                            ],
-                            value=modules.config.paths_checkpoints[0]
-                        )
-
-                        download_result_text = gr.Textbox(label='Download Status', interactive=False)
-                        download_file_button = gr.Button(value='\U00002B07 Download', variant='secondary', elem_classes='refresh_button')
-
-                        def perform_download(file_url_or_path, target_directory):
-                            try:
-                                if isinstance(target_directory, tuple):
-                                    target_directory = target_directory[1]
-
-                                if file_url_or_path.startswith(('http://', 'https://')):
-                                    response = requests.get(file_url_or_path, stream=True)
-                                    response.raise_for_status()
-
-                                    # Ambil nama file dari header jika tersedia
-                                    content_disposition = response.headers.get('Content-Disposition', '')
-                                    if 'filename=' in content_disposition:
-                                        filename = content_disposition.split('filename=')[-1].strip('"')
-                                    else:
-                                        # Fallback: ambil dari path URL
-                                        parsed_url = urlparse(file_url_or_path)
-                                        filename = unquote(os.path.basename(parsed_url.path))
-                                    downloaded_path = load_file_from_url(
-                                        file_url_or_path,
-                                        model_dir=target_directory,
-                                        progress=True,
-                                        file_name=filename
-                                    )
-                                    modules.config.update_files()  # ✅ REFRESH MODEL LIST
-                                    return (
-                                        f"✅ Downloaded to: {downloaded_path}",
-                                        gr.update(choices=['None'] + modules.config.model_filenames),
-                                        gr.update(choices=['None'] + modules.config.model_filenames),
-                                        *[
-                                            item
-                                            for _ in range(len(lora_ctrls) // 3)
-                                            for item in (
-                                                gr.update(interactive=True),
-                                                gr.update(choices=['None'] + modules.config.lora_filenames),
-                                                gr.update()
-                                            )
-                                        ]
-                                    )
-
-                                if os.path.isfile(file_url_or_path):
-                                    filename = os.path.basename(file_url_or_path)
-                                    destination_path = os.path.join(target_directory, filename)
-                                    shutil.copy(file_url_or_path, destination_path)
-                                    modules.config.update_files()  # ✅ Auto-refresh files
-                                    return (
-                                        f"✅ Copied to: {destination_path}",
-                                        gr.update(choices=['None'] + modules.config.model_filenames),
-                                        gr.update(choices=['None'] + modules.config.model_filenames),
-                                        *[
-                                            item
-                                            for _ in range(len(lora_ctrls) // 3)
-                                            for item in (
-                                                gr.update(interactive=True),
-                                                gr.update(choices=['None'] + modules.config.lora_filenames),
-                                                gr.update()
-                                            )
-                                        ]
-                                    )
-                                
-                                return ("❌ Error: File not found or invalid input.",) + (
-                                    gr.update(), gr.update(), *[gr.update()] * len(lora_ctrls)
-                                )
-
-                            except Exception as e:
-                                return (f"❌ Failed: {str(e)}",) + (
-                                    gr.update(), gr.update(), *[gr.update()] * len(lora_ctrls)
-                                )
-
-                        download_file_button.click(
-                            fn=perform_download,
-                            inputs=[file_input_path, destination_folder],
-                            outputs=[download_result_text, base_model, refiner_model] + lora_ctrls
-                        )
-                
-                    with gr.Tab(label='Delete') as delete_tab:
-                        delete_folder_dropdown = gr.Dropdown(
-                            label='Select Folder',
-                            choices=[
-                                modules.config.paths_checkpoints[0],
-                                modules.config.paths_loras[0],
-                                modules.config.path_embeddings,
-                                modules.config.path_vae,
-                                modules.config.path_outputs
-                            ],
-                            value=modules.config.paths_checkpoints[0]
-                        )
-
-                        file_list_dropdown = gr.Dropdown(label="Select File to Delete", choices=[], multiselect=True)
-                        delete_button = gr.Button(value='\U0001F5D1 Delete Selected File(s)', variant='stop')
-                        delete_status = gr.Textbox(visible=True, interactive=False, label="Delete Status")
-
-                        def update_file_list(folder):
-                            try:
-                                files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
-                                return gr.update(choices=files, value=[])
-                            except Exception as e:
-                                return gr.update(choices=[], value=[])
-
-                        def delete_selected_files(folder, selected_files):
-                            deleted = []
-                            errors = []
-
-                            for fname in selected_files:
-                                try:
-                                    file_path = os.path.join(folder, fname)
-                                    if os.path.isfile(file_path):
-                                        os.remove(file_path)
-                                        deleted.append(fname)
-                                    else:
-                                        errors.append(fname)
-                                except Exception as e:
-                                    errors.append(f"{fname} (error: {e})")
-
-                            if not deleted and not errors:
-                                status = "⚠️ No files selected."
-                            else:
-                                status = ""
-                                if deleted:
-                                    status += f"✅ Deleted: {', '.join(deleted)}. "
-                                if errors:
-                                    status += f"❌ Failed: {', '.join(errors)}"
-
-                            try:
-                                files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
-                            except Exception:
-                                files = []
-
-                            return status.strip(), gr.update(choices=files, value=[])
-
-                        delete_folder_dropdown.change(update_file_list, inputs=[delete_folder_dropdown], outputs=[file_list_dropdown])
-                        delete_button.click(delete_selected_files, inputs=[delete_folder_dropdown, file_list_dropdown], outputs=[delete_status, file_list_dropdown])
-                    delete_tab.select(
-                        fn=update_file_list,
-                        inputs=[delete_folder_dropdown],
-                        outputs=[file_list_dropdown],
-                        queue=False,
-                        show_progress=False
-                    )
+            webui_others.build_others_tab(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                aspect_ratio=aspect_ratios_selection,
+                performance=performance_selection,
+                styles=style_selections,
+                base_model=base_model,
+                refiner_model=refiner_model,
+                refiner_switch=refiner_switch,
+                image_number=image_number,
+                lora_ctrls=lora_ctrls
+            )
 
         state_is_generating = gr.State(False)
 
