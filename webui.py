@@ -561,7 +561,7 @@ with shared.gradio_root:
                                         outputs=enhance_input_panel, queue=False, show_progress=False, _js=switch_js)
 
         with gr.Column(scale=1, visible=modules.config.default_advanced_checkbox) as advanced_column:
-            with gr.Tab(label='Settings') as seetings_tab:
+            with gr.Tab(label='Settings') as settings_tab:
                 if not args_manager.args.disable_preset_selection:
                     preset_selection = gr.Dropdown(label='Preset',
                                                    choices=modules.config.available_presets,
@@ -899,7 +899,7 @@ with shared.gradio_root:
                 show_progress=False
             )
             
-            seetings_tab.select(
+            settings_tab.select(
                 fn=refresh_files_clicked,
                 inputs=[],
                 outputs=refresh_files_output + lora_ctrls,
