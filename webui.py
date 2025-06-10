@@ -26,8 +26,6 @@ from modules.util import is_json
 
 import webui_others
 import os
-import shutil
-import requests
 from urllib.parse import urlparse, unquote
 from modules.model_loader import load_file_from_url
 
