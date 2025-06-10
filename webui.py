@@ -18,8 +18,6 @@ import copy
 import launch
 from extras.inpaint_mask import SAMOptions
 
-modules.config.update_files()  # ✅ Force initial scan of models/Loras/etc
-
 from modules.sdxl_styles import legal_style_names
 from modules.private_logger import get_current_html_path
 from modules.ui_gradio_extensions import reload_javascript
@@ -659,7 +657,7 @@ with shared.gradio_root:
                                                        show_progress=False).then(
                     lambda: None, _js='()=>{refresh_style_localization();}')
 
-            with gr.Tab(label='Models'):
+            with gr.Tab(label='Models') as model_tab:
                 with gr.Group():
                     with gr.Row():
                         base_model = gr.Dropdown(label='Base Model (SDXL only)', choices=['None'] + modules.config.model_filenames, value=modules.config.default_base_model_name, show_label=True)
@@ -893,6 +891,14 @@ with shared.gradio_root:
                     refresh_files_output += [preset_selection]
                 refresh_files.click(refresh_files_clicked, [], refresh_files_output + lora_ctrls,
                                     queue=False, show_progress=False)
+                
+            model_tab.select(
+                fn=refresh_files_clicked,
+                inputs=[],
+                outputs=refresh_files_output + lora_ctrls,
+                queue=False,
+                show_progress=False
+            )
 
             with gr.Tab(label='Others'):
                 with gr.Column():
