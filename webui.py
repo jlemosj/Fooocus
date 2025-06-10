@@ -18,6 +18,8 @@ import copy
 import launch
 from extras.inpaint_mask import SAMOptions
 
+modules.config.update_files()  # ✅ Force initial scan of models/Loras/etc
+
 from modules.sdxl_styles import legal_style_names
 from modules.private_logger import get_current_html_path
 from modules.ui_gradio_extensions import reload_javascript
@@ -939,26 +941,58 @@ with shared.gradio_root:
                                         progress=True,
                                         file_name=filename
                                     )
-                                    return f"\U00002705 Downloaded to: {downloaded_path}"
+                                    modules.config.update_files()  # ✅ REFRESH MODEL LIST
+                                    return (
+                                        f"✅ Downloaded to: {downloaded_path}",
+                                        gr.update(choices=['None'] + modules.config.model_filenames),
+                                        gr.update(choices=['None'] + modules.config.model_filenames),
+                                        *[
+                                            item
+                                            for _ in range(len(lora_ctrls) // 3)
+                                            for item in (
+                                                gr.update(interactive=True),
+                                                gr.update(choices=['None'] + modules.config.lora_filenames),
+                                                gr.update()
+                                            )
+                                        ]
+                                    )
 
                                 if os.path.isfile(file_url_or_path):
                                     filename = os.path.basename(file_url_or_path)
                                     destination_path = os.path.join(target_directory, filename)
                                     shutil.copy(file_url_or_path, destination_path)
-                                    return f"\U00002705 Copied to: {destination_path}"
-
-                                return "\U0000274C Error: File not found or invalid input."
+                                    modules.config.update_files()  # ✅ Auto-refresh files
+                                    return (
+                                        f"✅ Copied to: {destination_path}",
+                                        gr.update(choices=['None'] + modules.config.model_filenames),
+                                        gr.update(choices=['None'] + modules.config.model_filenames),
+                                        *[
+                                            item
+                                            for _ in range(len(lora_ctrls) // 3)
+                                            for item in (
+                                                gr.update(interactive=True),
+                                                gr.update(choices=['None'] + modules.config.lora_filenames),
+                                                gr.update()
+                                            )
+                                        ]
+                                    )
+                                
+                                return ("❌ Error: File not found or invalid input.",) + (
+                                    gr.update(), gr.update(), *[gr.update()] * len(lora_ctrls)
+                                )
 
                             except Exception as e:
-                                return f"\U0000274C Failed: {str(e)}"
+                                return (f"❌ Failed: {str(e)}",) + (
+                                    gr.update(), gr.update(), *[gr.update()] * len(lora_ctrls)
+                                )
 
                         download_file_button.click(
                             fn=perform_download,
                             inputs=[file_input_path, destination_folder],
-                            outputs=[download_result_text]
+                            outputs=[download_result_text, base_model, refiner_model] + lora_ctrls
                         )
                 
-                    with gr.Tab(label='Delete'):
+                    with gr.Tab(label='Delete') as delete_tab:
                         delete_folder_dropdown = gr.Dropdown(
                             label='Select Folder',
                             choices=[
@@ -1015,7 +1049,13 @@ with shared.gradio_root:
 
                         delete_folder_dropdown.change(update_file_list, inputs=[delete_folder_dropdown], outputs=[file_list_dropdown])
                         delete_button.click(delete_selected_files, inputs=[delete_folder_dropdown, file_list_dropdown], outputs=[delete_status, file_list_dropdown])
-
+                    delete_tab.select(
+                        fn=update_file_list,
+                        inputs=[delete_folder_dropdown],
+                        outputs=[file_list_dropdown],
+                        queue=False,
+                        show_progress=False
+                    )
 
         state_is_generating = gr.State(False)
 
